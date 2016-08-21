@@ -270,9 +270,9 @@ void SuperSimpleSimulator::brokers_life()
     // a) randomly pick a stock instance from samples,
     // b) create a trade instance and populate its members with some randomness
     // c) use the stock symbol to find the last live record
-    //    of that stock from the exchange and copy its price to the trade ***
+    //    of that stock from the exchange and copy its price to the trade
     // d) record the trade.
-    // e) sleep for 2 seconds and repeat.
+    // e) sleep for some seconds and repeat.
 
     while(life_)
     {
@@ -359,7 +359,7 @@ void SuperSimpleSimulator::exchange_life()
     // a) randomly pick a stock instance from samples,
     // b) alter its price with a random uniform [0,30] +/- offset,
     // c) push it to the exchange container
-    // d) sleep for 2 seconds and repeat.
+    // d) sleep for some seconds and repeat.
 
     while(life_)
     {
