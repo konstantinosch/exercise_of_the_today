@@ -272,7 +272,9 @@ void SuperSimpleSimulator::brokers_life()
     // c) use the stock symbol to find the last live record
     //    of that stock from the exchange and copy its price to the trade
     // d) record the trade.
-    // e) sleep for some seconds and repeat.
+    // e) pick a random stock from the exchange
+    // f) calculate the all share index / divident yield / stock price.
+    // g) sleep for some seconds (life is hard) and repeat (but we must go on).
 
     while(life_)
     {
@@ -318,14 +320,17 @@ void SuperSimpleSimulator::brokers_life()
         // d)
         broker_ref_.record(t);
 
-        SuperSimpleStock sss2 = exchange_stocks_ref_.at(uniform_int_distribution<uint32_t>{0,exchange_stocks_ref_.size()-1}(rng_));
+        // e)
+         SuperSimpleStock sss2 = exchange_stocks_ref_.at(uniform_int_distribution<uint32_t>{0,exchange_stocks_ref_.size()-1}(rng_));
 
+        // f)
 #ifdef BROKER_STOCK_DEBUG
         cout << endl;
         cout << sss2;
         cout << "divident yield: " << sss2.divident_yield() << endl;
         cout << "PER: " << sss2.PER() << endl;
         cout << endl;
+
 
         cout << endl;
         cout << "all share index: " << broker_ref_.all_share_index(exchange_stocks_ref_) << endl;
@@ -341,7 +346,7 @@ void SuperSimpleSimulator::brokers_life()
 
         sim_mutex_.unlock();
 
-        // e)
+        // g)
         this_thread::sleep_for(seconds(3));
     }
     broker_thread_status_ = false;
