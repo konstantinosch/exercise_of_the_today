@@ -20,6 +20,18 @@
 //
 //
 // Konstantinos Chantzis
+//
+//
+//
+// extras:
+// Target language version: C++11
+// Platform/OS used for development: Windows / Ubuntu 14
+// Compiler or compiler flags used for development:
+//     * QT environment with C++11 flag in .pro file
+//     * g++ -std=gnu++0x -pthread
+//
+//
+
 
 #include <iostream>
 #include <vector>
@@ -28,12 +40,13 @@
 #include <mutex>
 #include <random>
 
+
 #define FIFTEEN_MINUTES 9000 //ms set for testing
 //#define EXCHANGE_DEBUG
 //#define BROKER_STOCK_DEBUG
 #define BROKER_TRADE_DEBUG
 
-using namespace std;
+//using namespace std;
 using namespace std::chrono;
 
 //======================================================================//
@@ -43,12 +56,12 @@ class SuperSimpleStock
 {
 
 public:
-    SuperSimpleStock(string, string, double, double, double);
-    double divident_yield();
+    SuperSimpleStock(std::string, std::string, double, double, double);
+    double dividend_yield();
     double PER();
     double get_par_value() const;
     void set_par_value(double);
-    string get_stock_symbol();
+    std::string get_stock_symbol();
 
     friend std::ostream& operator <<(std::ostream& o, const SuperSimpleStock& sss)
     {
@@ -58,36 +71,49 @@ public:
         }
         else
         {
-            o << "[" << sss.stock_symbol_ << ":" << sss.stock_type_ << ":" << sss.last_divident_ << ":" << sss.fixed_divident_ << ":" << sss.par_value_ << "]" << std::endl;
+            o << "[" << sss.stock_symbol_ << ":" << sss.stock_type_ << ":" << sss.last_dividend_ << ":" << sss.fixed_dividend_ << ":" << sss.par_value_ << "]" << std::endl;
         }
         return o;
     }
 
 
 private:
-    string stock_symbol_;
-    string stock_type_;
-    double last_divident_;
-    double fixed_divident_;
+    std::string stock_symbol_;
+    std::string stock_type_;
+    double last_dividend_;
+    double fixed_dividend_;
     double par_value_;
 };
 
-SuperSimpleStock::SuperSimpleStock(string stock_symbol, string stock_type, double last_divident, double fixed_divident, double par_value) :
+SuperSimpleStock::SuperSimpleStock(std::string stock_symbol, std::string stock_type, double last_dividend, double fixed_dividend, double par_value) :
     stock_symbol_       (stock_symbol),
     stock_type_         (stock_type),
-    last_divident_      (last_divident),
-    fixed_divident_     (fixed_divident),
+    last_dividend_      (last_dividend),
+    fixed_dividend_     (fixed_dividend),
     par_value_          (par_value)
 {}
 
-double SuperSimpleStock::divident_yield()
+double SuperSimpleStock::dividend_yield()
 {
     double dy=0;
 
-    if ( par_value_ == 0 )
+    if ( !par_value_ )
+    {
         return 0;
+    }
 
-    dy = last_divident_ / par_value_;
+    if (stock_type_ == "Common")
+    {
+        dy = last_dividend_ / par_value_;
+    }
+    else if (stock_type_ == "Preferred")
+    {
+        dy = (fixed_dividend_ * par_value_ ) / par_value_;
+    }
+    else
+    {
+        dy = 0;
+    }
 
     return dy;
 }
@@ -96,10 +122,12 @@ double SuperSimpleStock::PER()
 {
     double per=0;
 
-    if ( last_divident_ == 0 )
+    if ( !last_dividend_ )
+    {
         return 0;
+    }
 
-    per = par_value_ / last_divident_;
+    per = par_value_ / last_dividend_;
 
     return per;
 }
@@ -114,7 +142,7 @@ void SuperSimpleStock::set_par_value(double pv)
     par_value_ = pv;
 }
 
-string SuperSimpleStock::get_stock_symbol()
+std::string SuperSimpleStock::get_stock_symbol()
 {
     return stock_symbol_;
 }
@@ -122,9 +150,9 @@ string SuperSimpleStock::get_stock_symbol()
 //======================================================================//
 //======================================================================//
 
-typedef struct Trade
+struct Trade
 {
-    string stock_symbol;
+    std::string stock_symbol;
     milliseconds timestamp;
     char bs_indicator;
     long quantity;
@@ -143,7 +171,7 @@ typedef struct Trade
         return o;
     }
 
-} Trade;
+};
 
 //======================================================================//
 //======================================================================//
@@ -152,10 +180,10 @@ class SuperSimpleBroker
 {
     public:
         void record(const Trade&);
-        double stock_price(string);
-        double all_share_index(const vector<SuperSimpleStock>&);
+        double stock_price(std::string);
+        double all_share_index(const std::vector<SuperSimpleStock>&);
     private:
-        vector<Trade> trade_records_;
+        std::vector<Trade> trade_records_;
 };
 
 void SuperSimpleBroker::record(const Trade& t)
@@ -163,7 +191,7 @@ void SuperSimpleBroker::record(const Trade& t)
     trade_records_.push_back(t);
 }
 
-double SuperSimpleBroker::stock_price(string ss)
+double SuperSimpleBroker::stock_price(std::string ss)
 {
     double sp = 0; //stock price
     double sum_tp_q = 0; //sum of trade price and quantities product
@@ -172,11 +200,11 @@ double SuperSimpleBroker::stock_price(string ss)
     unsigned long long e_timestamp = 0; // earliest timestamp
     bool o_flag = false; //occurance flag
 
-    for (vector<Trade>::reverse_iterator i = trade_records_.rbegin(); i != trade_records_.rend(); ++i)
+    for (std::vector<Trade>::reverse_iterator i = trade_records_.rbegin(); i != trade_records_.rend(); ++i)
     {
         if ( i->stock_symbol == ss )
         {
-            if (o_flag == false)
+            if (!o_flag)
             {
                 l_timestamp = i->timestamp.count();
                 o_flag = true;
@@ -191,31 +219,35 @@ double SuperSimpleBroker::stock_price(string ss)
                 break;
             }
 
-            sum_tp_q = (i->price * i->quantity) + sum_tp_q;
-            sum_q = i->quantity + sum_q;
+            sum_tp_q += (i->price * i->quantity);
+            sum_q += i->quantity;
         }
     }
 
-    if ( sum_q == 0 ) return 0;
+    if ( !sum_q )
+    {
+        return 0;
+    }
 
     sp = sum_tp_q / sum_q;
 
     return sp;
 }
 
-double SuperSimpleBroker::all_share_index(const vector<SuperSimpleStock>& sssv)
+double SuperSimpleBroker::all_share_index(const std::vector<SuperSimpleStock>& sssv)
 {
     double asi = 0;
 
     long double sum = 0;
 
-    for (vector<SuperSimpleStock>::const_iterator i = sssv.begin(); i != sssv.end(); ++i)
+    for (std::vector<SuperSimpleStock>::const_iterator i = sssv.begin(); i != sssv.end(); ++i)
     {
         double stock_price = i->get_par_value();
-        sum = log(stock_price) + sum;
+        sum += log(stock_price);
     }
 
     asi = exp(sum/sssv.size()); //sum of logs
+    // https://en.wikipedia.org/wiki/Geometric_mean#Relationship_with_logarithms
 
     return asi;
 }
@@ -227,7 +259,7 @@ class SuperSimpleSimulator
 {
 
 public:
-    SuperSimpleSimulator(const vector<SuperSimpleStock>&, vector<SuperSimpleStock>&, SuperSimpleBroker& );
+    SuperSimpleSimulator(const std::vector<SuperSimpleStock>&, std::vector<SuperSimpleStock>&, SuperSimpleBroker& );
     void start_sim();
     void stop_sim();
 
@@ -236,24 +268,27 @@ private:
     void exchange_life();
 
     //random
-    mt19937 rng_;
+    std::mt19937 rng_;
 
     //multitasking
     volatile bool life_;
     volatile bool exchange_thread_status_;
     volatile bool broker_thread_status_;
-    mutex sim_mutex_;
-    thread exchange_thread_;
-    thread broker_thread_;
+    std::mutex sim_mutex_;
+    std::thread exchange_thread_;
+    std::thread broker_thread_;
 
     //containers
-    const vector<SuperSimpleStock>& sample_stocks_ref_;
-    vector<SuperSimpleStock>& exchange_stocks_ref_;
+    const std::vector<SuperSimpleStock>& sample_stocks_ref_;
+    std::vector<SuperSimpleStock>& exchange_stocks_ref_;
     SuperSimpleBroker& broker_ref_;
 
 };
 
-SuperSimpleSimulator::SuperSimpleSimulator(const vector<SuperSimpleStock>& sr, vector<SuperSimpleStock>& gr, SuperSimpleBroker& br) :
+SuperSimpleSimulator::SuperSimpleSimulator(const std::vector<SuperSimpleStock>& sr, std::vector<SuperSimpleStock>& gr, SuperSimpleBroker& br) :
+    life_ (false),
+    exchange_thread_status_ (false),
+    broker_thread_status_ (false),
     sample_stocks_ref_ (sr),
     exchange_stocks_ref_ (gr),
     broker_ref_ (br)
@@ -263,18 +298,16 @@ SuperSimpleSimulator::SuperSimpleSimulator(const vector<SuperSimpleStock>& sr, v
 
 void SuperSimpleSimulator::brokers_life()
 {
-    std::cout << "SuperSimpleSimulator::brokers_life() ENTER" << endl;
+    std::cout << "SuperSimpleSimulator::brokers_life() ENTER" << std::endl;
 
     // The simple life of the broker in a nutshell:
     //
     // a) randomly pick a stock instance from samples,
     // b) create a trade instance and populate its members with some randomness
     // c) use the stock symbol to find the last live record
-    //    of that stock from the exchange and copy its price to the trade
+    //    of that stock from the exchange and copy its price to the trade ***
     // d) record the trade.
-    // e) pick a random stock from the exchange
-    // f) calculate the all share index / divident yield / stock price.
-    // g) sleep for some seconds (life is hard) and repeat (but we must go on).
+    // e) sleep for 2 seconds and repeat.
 
     while(life_)
     {
@@ -283,9 +316,12 @@ void SuperSimpleSimulator::brokers_life()
         broker_thread_status_ = true;
         // a)
 
-        if (sample_stocks_ref_.size() == 0 || exchange_stocks_ref_.size() == 0) return;
+        if (!sample_stocks_ref_.size() || !exchange_stocks_ref_.size())
+        {
+            return;
+        }
 
-        SuperSimpleStock sss1 = sample_stocks_ref_.at(uniform_int_distribution<uint32_t>{0,sample_stocks_ref_.size()-1}(rng_));
+        SuperSimpleStock sss1 = sample_stocks_ref_.at(std::uniform_int_distribution<uint32_t>{0,sample_stocks_ref_.size()-1}(rng_));
 
         // b)
 
@@ -293,7 +329,7 @@ void SuperSimpleSimulator::brokers_life()
 
         t.stock_symbol = sss1.get_stock_symbol();
 
-        if (uniform_int_distribution<uint32_t>{0,1}(rng_))
+        if (std::uniform_int_distribution<uint32_t>{0,1}(rng_))
         {
             t.bs_indicator = 'b';
         }
@@ -302,12 +338,12 @@ void SuperSimpleSimulator::brokers_life()
             t.bs_indicator = 's';
         }
 
-        t.quantity = uniform_int_distribution<uint32_t>{0,50}(rng_);
+        t.quantity = std::uniform_int_distribution<uint32_t>{0,50}(rng_);
 
         t.timestamp = duration_cast< milliseconds >(system_clock::now().time_since_epoch());
 
         // c)
-        for (vector<SuperSimpleStock>::reverse_iterator i = exchange_stocks_ref_.rbegin(); i != exchange_stocks_ref_.rend(); ++i)
+        for (std::vector<SuperSimpleStock>::reverse_iterator i = exchange_stocks_ref_.rbegin(); i != exchange_stocks_ref_.rend(); ++i)
         {
 
             if (i->get_stock_symbol() == t.stock_symbol)
@@ -320,43 +356,40 @@ void SuperSimpleSimulator::brokers_life()
         // d)
         broker_ref_.record(t);
 
-        // e)
-         SuperSimpleStock sss2 = exchange_stocks_ref_.at(uniform_int_distribution<uint32_t>{0,exchange_stocks_ref_.size()-1}(rng_));
+        SuperSimpleStock sss2 = exchange_stocks_ref_.at(std::uniform_int_distribution<uint32_t>{0,exchange_stocks_ref_.size()-1}(rng_));
 
-        // f)
 #ifdef BROKER_STOCK_DEBUG
-        cout << endl;
-        cout << sss2;
-        cout << "divident yield: " << sss2.divident_yield() << endl;
-        cout << "PER: " << sss2.PER() << endl;
-        cout << endl;
+        std::cout << std::endl;
+        std::cout << sss2;
+        std::cout << "dividend yield: " << sss2.dividend_yield() << std::endl;
+        std::cout << "PER: " << sss2.PER() << std::endl;
+        std::cout << std::endl;
 
-
-        cout << endl;
-        cout << "all share index: " << broker_ref_.all_share_index(exchange_stocks_ref_) << endl;
-        cout << endl;
+        std::cout << std::endl;
+        std::cout << "all share index: " << broker_ref_.all_share_index(exchange_stocks_ref_) << std::endl;
+        std::cout << std::endl;
 #endif
 
 #ifdef BROKER_TRADE_DEBUG
-        cout << endl;
-        cout << "stock price: " << broker_ref_.stock_price(t.stock_symbol) << endl;
-        cout << t << endl;
-        cout << endl;
+        std::cout << std::endl;
+        std::cout << "stock price: " << broker_ref_.stock_price(t.stock_symbol) << std::endl;
+        std::cout << t << std::endl;
+        std::cout << std::endl;
 #endif
 
         sim_mutex_.unlock();
 
-        // g)
-        this_thread::sleep_for(seconds(3));
+        // e)
+        std::this_thread::sleep_for(seconds(3));
     }
     broker_thread_status_ = false;
 
-    cout << "SuperSimpleSimulator::brokers_life() EXIT" << endl;
+    std::cout << "SuperSimpleSimulator::brokers_life() EXIT" << std::endl;
 }
 
 void SuperSimpleSimulator::exchange_life()
 {
-    cout << "SuperSimpleSimulator::exchange_life() ENTER" << endl;
+    std::cout << "SuperSimpleSimulator::exchange_life() ENTER" << std::endl;
 
 
     // The simple life of the exchange in a nutshell:
@@ -364,24 +397,28 @@ void SuperSimpleSimulator::exchange_life()
     // a) randomly pick a stock instance from samples,
     // b) alter its price with a random uniform [0,30] +/- offset,
     // c) push it to the exchange container
-    // d) sleep for some seconds and repeat.
+    // d) sleep for 2 seconds and repeat.
 
     while(life_)
     {
         sim_mutex_.lock();
         exchange_thread_status_ = true;
         // a)
-        if (sample_stocks_ref_.size() == 0) return;
-        SuperSimpleStock sss = sample_stocks_ref_.at(uniform_int_distribution<uint32_t>{0,sample_stocks_ref_.size()-1}(rng_));
+        if (!sample_stocks_ref_.size())
+        {
+            return;
+        }
+
+        SuperSimpleStock sss = sample_stocks_ref_.at(std::uniform_int_distribution<uint32_t>{0,sample_stocks_ref_.size()-1}(rng_));
 
         // b)
-        if (uniform_int_distribution<uint32_t>{0,2}(rng_))
+        if (std::uniform_int_distribution<uint32_t>{0,2}(rng_))
         {
-            sss.set_par_value(sss.get_par_value() + ( uniform_int_distribution<uint32_t>{0,30}(rng_) * sss.get_par_value() )/100 );
+            sss.set_par_value(sss.get_par_value() + ( std::uniform_int_distribution<uint32_t>{0,30}(rng_) * sss.get_par_value() )/100 );
         }
         else
         {
-            sss.set_par_value(sss.get_par_value() - ( uniform_int_distribution<uint32_t>{0,30}(rng_) * sss.get_par_value() )/100 );
+            sss.set_par_value(sss.get_par_value() - ( std::uniform_int_distribution<uint32_t>{0,30}(rng_) * sss.get_par_value() )/100 );
         }
 
         // c)
@@ -394,35 +431,35 @@ void SuperSimpleSimulator::exchange_life()
 #endif
 
         // d)
-        this_thread::sleep_for(seconds(1));
+        std::this_thread::sleep_for(seconds(1));
     }
     exchange_thread_status_ = false;
 
-    cout << "SuperSimpleSimulator::exchange_life() EXIT" << endl;
+    std::cout << "SuperSimpleSimulator::exchange_life() EXIT" << std::endl;
 }
 
 void SuperSimpleSimulator::start_sim()
 {
-    cout << "SuperSimpleSimulator::start_sim() ENTER" << endl;
+    std::cout << "SuperSimpleSimulator::start_sim() ENTER" << std::endl;
 
     broker_thread_status_ = true;
     exchange_thread_status_ = true;
     life_ = true;
 
-    exchange_thread_ = thread(&SuperSimpleSimulator::exchange_life,this);
-    this_thread::sleep_for(seconds(5)); //give some time to populate the container
-    broker_thread_ = thread(&SuperSimpleSimulator::brokers_life,this);
+    exchange_thread_ = std::thread(&SuperSimpleSimulator::exchange_life,this);
+    std::this_thread::sleep_for(seconds(5)); //give some time to populate the container
+    broker_thread_ = std::thread(&SuperSimpleSimulator::brokers_life,this);
 
-    cout << "SuperSimpleSimulator::start_sim() EXIT" << endl;
+    std::cout << "SuperSimpleSimulator::start_sim() EXIT" << std::endl;
 }
 
 void SuperSimpleSimulator::stop_sim()
 {
     life_ = false;
 
-    while(exchange_thread_status_== true && broker_thread_status_ == true)
+    while(exchange_thread_status_ && broker_thread_status_ )
     {
-        this_thread::sleep_for(seconds(1));
+        std::this_thread::sleep_for(seconds(1));
     }
     exchange_thread_.join();
     broker_thread_.join();
@@ -431,10 +468,22 @@ void SuperSimpleSimulator::stop_sim()
 //======================================================================//
 //======================================================================//
 
+
+//template<typename T> class MyList: public std::list<T>
+//{
+//};
+
+
+
+//======================================================================//
+//======================================================================//
+
+
 int main()
 {
+
     //Sample data for easy generation
-    vector<SuperSimpleStock> GBCE_sample_stocks;
+    std::vector<SuperSimpleStock> GBCE_sample_stocks;
     GBCE_sample_stocks.push_back(SuperSimpleStock("TEA","Common",0,0,100));
     GBCE_sample_stocks.push_back(SuperSimpleStock("POP","Common",8,0,100));
     GBCE_sample_stocks.push_back(SuperSimpleStock("ALE","Common",23,0,60));
@@ -442,7 +491,7 @@ int main()
     GBCE_sample_stocks.push_back(SuperSimpleStock("JOE","Common",13,0,250));
 
     //The Global Beverage Corporation Exchange
-    vector<SuperSimpleStock> GBCE_stocks;
+    std::vector<SuperSimpleStock> GBCE_stocks;
 
     SuperSimpleBroker Konstantinos;
     SuperSimpleSimulator Sim(GBCE_sample_stocks, GBCE_stocks, Konstantinos);
@@ -452,7 +501,7 @@ int main()
 
     while(true)
     {
-        this_thread::sleep_for(seconds(1000));
+        std::this_thread::sleep_for(seconds(1000));
 
         //end simulation
         Sim.stop_sim();
